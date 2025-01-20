@@ -1,0 +1,224 @@
+<style>
+.gridContainer {
+    display: flex;
+    width: 100%;
+}
+
+.timeColumn {
+    width: 80px;
+    border-right: 1px solid black;
+    margin-top: 40px;
+}
+
+.techColumn {
+    flex: 1;
+    border-right: 1px solid black;
+    position: relative; 
+    min-width: 150px;
+    padding-top: 40px;
+}
+
+.techName {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    text-align: center;
+    font-weight: bold;
+    height: 40px;
+    line-height: 40px;
+    background-color: rgb(101, 126, 207);
+}
+
+.timeslot {
+    height: 60px; 
+}
+
+.timeColumn .timeslot:nth-child(even){
+    background-color:rgb(113, 111, 111);
+}
+
+.timeColumn .timeslot:nth-child(odd){
+    background-color:rgb(158, 157, 157); 
+}
+
+.techColumn .timeslot:nth-child(odd) {
+    background-color:rgb(113, 111, 111);
+}
+
+.techColumn .timeslot:nth-child(even) {
+    background-color:rgb(158, 157, 157);
+}
+
+.workOrder {
+    position: absolute;
+    left: 5px; 
+    right: 5px;
+    background-color: rgb(204, 238, 255);
+    border: 1px solid black;
+    padding: 2px;
+
+    display: flex;
+    justify-content: space-between; 
+    align-items: flex-start; 
+}
+
+.orderLeft {
+    text-align: left;
+}
+
+.orderRight {
+    text-align: right;
+}
+
+#popup {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: flex; 
+    align-items: center; 
+    justify-content: center;
+}
+
+#popupBox {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    width: 300px;
+    position: relative;
+    text-align: center;
+}
+
+#closePopup {
+    position: absolute; 
+    right: 10px; 
+    top: 10px;
+    cursor: pointer;
+}
+</style>
+
+<div class="gridContainer">
+  <div class="timeColumn">
+    <% (@start_hour..@end_hour - 1).each do |hour| %>
+      <div class="timeslot">
+        <%= "#{hour}:00" %>
+      </div>
+    <% end %>
+  </div>
+
+    <% @technicians.each do |tech| %>
+        <div class="techColumn" id="tech-<%= tech.id %>">
+                <div class="techName">
+                    <%= tech.name %>
+                </div>
+                <% (@start_hour..@end_hour - 1).each do |hour| %>
+                    <div class="timeslot" style="position: relative; height: 60px;"
+                        onclick="checkAvailableSlot(<%= tech.id %>, <%= hour %>, event)">
+                    </div>
+                <% end %>
+            <% tech.work_orders.each do |order| %>
+                <% 
+                    offset = order.start_time.hour - @start_hour + (order.start_time.min / 60.0)
+                    top = offset * 60 + 40 
+                    height = order.duration - 5
+                %>
+                <div class="workOrder" style="top: <%= top %>px; height: <%= height %>px;">
+                    <div class="orderLeft">
+                        Name: <%= order.location.name %><br/>
+                        City: <%= order.location.city %>
+                    </div>
+                    <div class="orderRight">
+                        Start: <%= order.start_time.strftime("%H:%M") %><br/>
+                        Price: <%= "$#{order.price.to_i}" %>
+                    </div>
+                </div>
+            <% end %>
+        </div>
+    <% end %>
+</div>
+
+<div id="popup" style="display: none;">
+    <div id="popupBox">
+        <button type="button" id="closePopup">&times;</button>
+        <p id="popupMessage"></p>
+    </div>
+</div>
+
+<script>
+
+
+//Creates a dictionary with the key being the tech id and the return values
+//being an array of start and end times for each workorder
+const technicianWorkOrders = {
+    <% @technicians.each do |tech| %>
+        <%= tech.id %>: [
+            <% tech.work_orders.order(:start_time).each do |orders| %>
+            {
+                start: <%= orders.start_time.hour * 60 + orders.start_time.min %>,
+                end:   <%= orders.end_time.hour   * 60 + orders.end_time.min   %>
+            },
+            <% end %>
+        ],
+    <% end %>
+};
+
+//in minutes
+const DAYSTART = <%= @start_hour %> * 60;
+const DAYEND   = <%= @end_hour   %> * 60;
+
+function checkAvailableSlot(technicianId, hour, event) {
+    //Need to get where the user clicks to see if the user 
+    //clicked before or after the order during that specific hour
+    const rect = event.currentTarget.getBoundingClientRect();
+    const offset = event.clientY - rect.top;
+
+    let extraMins = Math.floor(offset);
+    let mins = hour * 60 + extraMins;
+
+    let ordersArray = technicianWorkOrders[technicianId];
+    let prev = null;
+    let next = null;
+
+    //DETERMINE WHICH WORKORDERS ARE PREVIOUS OR NEXT
+    ordersArray.forEach(order => {
+        if (order.end <= mins) {
+            if (!prev || order.end > prev.end) {
+                prev = order;
+            }
+        }
+        else if (order.start >= mins) {
+            if (!next || order.start < next.start) {
+                next = order;
+            }
+        }
+    });
+
+    let availableMins = 0;
+    if (prev && next) {
+        availableMins = next.start - prev.end;
+    } 
+    else if (prev) {
+        availableMins = DAYEND - prev.end;
+    } 
+    else if (next) {
+        availableMins = next.start - DAYSTART;
+    } 
+    else {
+        availableMins = DAYEND - DAYSTART;
+    }
+
+    showPopup("Available time: " + availableMins + " minutes");
+}
+
+
+function showPopup(message) {
+    document.getElementById("popupMessage").textContent = message;
+    document.getElementById("popup").style.display = "flex";
+}
+
+function closePopup() {
+    document.getElementById("popup").style.display = "none";
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    document.getElementById("closePopup").addEventListener("click", closePopup);
+});
+</script>

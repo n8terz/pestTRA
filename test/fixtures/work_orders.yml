@@ -1,0 +1,15 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  technician: one
+  location: one
+  start_time: 2025-01-17 09:35:54
+  duration: 1
+  price: 1
+
+two:
+  technician: two
+  location: two
+  start_time: 2025-01-17 09:35:54
+  duration: 1
+  price: 1
