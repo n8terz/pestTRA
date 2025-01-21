@@ -14,6 +14,7 @@ commands to run the code:
 
 
 Brief description:
+
     Designs:
         For my design decisions I just tried to complete steps one at a time learning how to use 
         ruby on rails. I started with creating the database migrate files, then updated my routes to 
