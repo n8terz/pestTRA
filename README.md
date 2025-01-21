@@ -3,11 +3,11 @@ Ruby version 3.4.1
 rails version: 8.0.1
 
 commands to run the code:
+
     git clone https://github.com/n8terz/pestTRA.git
     cd pestTRA
     bundle install
     rails db:create db:migrate
-
     rake doall
     rails server
     go to http://localhost:3000
